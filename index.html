@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">Validate Your Idea</title>
+  <meta name="description" id="page-description" content="">
+  <meta property="og:title" id="og-title" content="">
+  <meta property="og:description" id="og-description" content="">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+            display: ['"DM Serif Display"', 'Georgia', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --primary: var(--cfg-primary, #C0623A);
+      --primary-dark: var(--cfg-primary-dark, #A04E2D);
+      --bg: var(--cfg-bg, #FAFAF8);
+      --surface: var(--cfg-surface, #FFFFFF);
+      --text: var(--cfg-text, #1a1a1a);
+      --text-muted: var(--cfg-text-muted, #6b6b6b);
+      --border: var(--cfg-border, #e5e5e0);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-display { font-family: 'DM Serif Display', Georgia, serif; }
+
+    /* Subtle grain texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 100;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    input[type="email"], input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--surface);
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(192, 98, 58, 0.15);
+    }
+
+    .radio-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 15px;
+    }
+    .radio-pill:hover { border-color: var(--primary); background: rgba(192, 98, 58, 0.04); }
+    .radio-pill:has(input:checked) {
+      border-color: var(--primary);
+      background: rgba(192, 98, 58, 0.08);
+    }
+    .radio-pill input { accent-color: var(--primary); }
+
+    /* Fade-in animation */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeUp 0.5s ease-out both;
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+
+    /* Success state */
+    .success-check {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .animate-in { animation: none; opacity: 1; }
+      .success-check { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="py-6 px-4">
+      <div class="max-w-2xl mx-auto">
+        <span id="header-logo" class="font-display text-xl" style="color: var(--primary);"></span>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <main class="flex-1 px-4 pb-20">
+      <div class="max-w-2xl mx-auto">
+
+        <!-- Problem / Headline -->
+        <section class="pt-8 pb-12 animate-in">
+          <p id="hero-eyebrow" class="text-sm font-medium uppercase tracking-wide mb-4" style="color: var(--primary);"></p>
+          <h1 id="hero-headline" class="font-display text-4xl sm:text-5xl leading-tight mb-6" style="color: var(--text);"></h1>
+          <p id="hero-subheadline" class="text-lg sm:text-xl leading-relaxed" style="color: var(--text-muted);"></p>
+        </section>
+
+        <!-- Benefits -->
+        <section id="benefits-section" class="pb-12 animate-in delay-1">
+          <div id="benefits-grid" class="grid gap-4 sm:grid-cols-3"></div>
+        </section>
+
+        <!-- Signup Form -->
+        <section class="pb-12 animate-in delay-2">
+          <div class="card max-w-lg mx-auto">
+            <div id="form-container">
+              <h2 id="form-title" class="font-display text-2xl mb-2 text-center"></h2>
+              <p id="form-subtitle" class="text-center mb-6" style="color: var(--text-muted); font-size: 15px;"></p>
+
+              <!-- Survey question (optional, rendered by JS) -->
+              <div id="survey-container" class="mb-6 hidden"></div>
+
+              <!-- Email form -->
+              <form id="signup-form" class="space-y-3">
+                <input type="email" id="email-input" name="email" placeholder="you@example.com" required>
+                <input type="hidden" id="survey-answer" name="survey_answer" value="">
+                <button type="submit" class="btn-primary w-full" id="submit-btn"></button>
+              </form>
+              <p class="text-center text-xs mt-3" style="color: var(--text-muted);">No spam. Unsubscribe anytime.</p>
+            </div>
+
+            <!-- Success state (hidden by default) -->
+            <div id="success-container" class="hidden text-center py-4">
+              <div class="success-check">
+                <svg width="28" height="28" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 20 22 8"></polyline></svg>
+              </div>
+              <h3 class="font-display text-2xl mb-2">You're on the list!</h3>
+              <p style="color: var(--text-muted);" id="success-message">We'll notify you when we launch.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Social proof counter -->
+        <section class="text-center animate-in delay-3">
+          <p id="social-proof" class="text-sm" style="color: var(--text-muted);"></p>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-6 px-4 text-center text-sm" style="color: var(--text-muted); border-top: 1px solid var(--border);">
+      <span id="footer-text"></span>
+    </footer>
+
+  </div>
+
+  <script>
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  CONFIGURATION — Edit this object to customize the page ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    const CONFIG = {
+
+      // ── Branding ──────────────────────────────────────────
+      productName: "YourProduct",
+      // Colors (CSS custom properties)
+      colors: {
+        primary:     "#C0623A",   // main action color
+        primaryDark: "#A04E2D",   // hover state
+        background:  "#FAFAF8",   // page background
+        surface:     "#FFFFFF",   // card background
+        text:        "#1a1a1a",   // primary text
+        textMuted:   "#6b6b6b",   // secondary text
+        border:      "#e5e5e0",   // borders
+      },
+
+      // ── Hero Section ─────────────────────────────────────
+      eyebrow:     "Stop losing orders in your DMs",          // small text above headline
+      headline:    "Turn WhatsApp Chaos Into a Real Storefront",  // main headline (use \n for line break)
+      subheadline: "A dead-simple ordering page for Singapore home businesses. Share one link. Get orders. Track payments. No spreadsheets.",
+
+      // ── Benefits (exactly 3) ──────────────────────────────
+      benefits: [
+        {
+          icon: "🔗",
+          title: "One Link, All Orders",
+          description: "Share your store link on Instagram, WhatsApp, or anywhere. Customers order in 30 seconds.",
+        },
+        {
+          icon: "💬",
+          title: "WhatsApp Native",
+          description: "Orders go straight to your WhatsApp. No new apps to learn. Keep your workflow.",
+        },
+        {
+          icon: "📊",
+          title: "Finally, Visibility",
+          description: "See all orders in one dashboard. Know who paid. Know what's pending. No more scrolling chats.",
+        },
+      ],
+
+      // ── Signup Form ───────────────────────────────────────
+      formTitle:    "Get Early Access",
+      formSubtitle: "Be the first to try it — free for early adopters.",
+      ctaText:      "Join the Waitlist",
+      successMessage: "We'll let you know as soon as it's ready. Check your inbox!",
+
+      // Form endpoint — sign up at https://formspree.io (free: 50 submissions/month)
+      // Replace with your Formspree form ID
+      formAction: "https://formspree.io/f/YOUR_FORM_ID",
+
+      // ── Survey Question (optional) ────────────────────────
+      // Set to null to hide the survey
+      survey: {
+        question: "What's your biggest ordering headache?",
+        options: [
+          "Losing track of orders in DMs/chats",
+          "Customers asking 'did I pay already?'",
+          "Managing inventory manually",
+          "No proper way to share my menu/catalog",
+        ],
+      },
+      // survey: null,  // ← uncomment to hide survey
+
+      // ── Social Proof ──────────────────────────────────────
+      // Set to null to hide
+      socialProof: "Join 50+ home business owners on the waitlist",
+      // socialProof: null,  // ← uncomment to hide
+
+      // ── Footer ────────────────────────────────────────────
+      footerText: "© 2026 YourProduct",
+
+      // ── SEO ───────────────────────────────────────────────
+      pageTitle:       "YourProduct — Tagline Here",
+      pageDescription: "A one-sentence description for search engines and social sharing.",
+    };
+
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  RENDERER — Don't edit below unless customizing layout  ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    (function render() {
+      const C = CONFIG;
+
+      // Apply colors
+      const root = document.documentElement;
+      root.style.setProperty('--cfg-primary', C.colors.primary);
+      root.style.setProperty('--cfg-primary-dark', C.colors.primaryDark);
+      root.style.setProperty('--cfg-bg', C.colors.background);
+      root.style.setProperty('--cfg-surface', C.colors.surface);
+      root.style.setProperty('--cfg-text', C.colors.text);
+      root.style.setProperty('--cfg-text-muted', C.colors.textMuted);
+      root.style.setProperty('--cfg-border', C.colors.border);
+
+      // SEO
+      document.getElementById('page-title').textContent = C.pageTitle;
+      document.getElementById('page-description').content = C.pageDescription;
+      document.getElementById('og-title').content = C.pageTitle;
+      document.getElementById('og-description').content = C.pageDescription;
+      document.title = C.pageTitle;
+
+      // Header
+      document.getElementById('header-logo').textContent = C.productName;
+
+      // Hero
+      document.getElementById('hero-eyebrow').textContent = C.eyebrow;
+      document.getElementById('hero-headline').innerHTML = C.headline.replace(/\\n/g, '<br>');
+      document.getElementById('hero-subheadline').textContent = C.subheadline;
+
+      // Benefits
+      const grid = document.getElementById('benefits-grid');
+      C.benefits.forEach((b) => {
+        const card = document.createElement('div');
+        card.className = 'card text-center';
+        card.innerHTML = `
+          <div class="text-3xl mb-3">${b.icon}</div>
+          <h3 class="font-medium mb-2">${b.title}</h3>
+          <p class="text-sm" style="color: var(--text-muted);">${b.description}</p>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Form
+      document.getElementById('form-title').textContent = C.formTitle;
+      document.getElementById('form-subtitle').textContent = C.formSubtitle;
+      document.getElementById('submit-btn').textContent = C.ctaText;
+      document.getElementById('success-message').textContent = C.successMessage;
+
+      // Survey
+      if (C.survey) {
+        const container = document.getElementById('survey-container');
+        container.classList.remove('hidden');
+        container.innerHTML = `
+          <p class="font-medium mb-3">${C.survey.question}</p>
+          <div class="space-y-2">
+            ${C.survey.options.map((opt, i) => `
+              <label class="radio-pill">
+                <input type="radio" name="survey" value="${opt}" ${i === 0 ? '' : ''}>
+                ${opt}
+              </label>
+            `).join('')}
+          </div>
+        `;
+        // Sync survey selection to hidden input
+        container.addEventListener('change', (e) => {
+          document.getElementById('survey-answer').value = e.target.value;
+        });
+      }
+
+      // Social proof
+      if (C.socialProof) {
+        document.getElementById('social-proof').textContent = C.socialProof;
+      }
+
+      // Footer
+      document.getElementById('footer-text').textContent = C.footerText;
+
+      // Form submission
+      const form = document.getElementById('signup-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+        const email = document.getElementById('email-input').value;
+        const survey = document.getElementById('survey-answer').value;
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        try {
+          const res = await fetch(C.formAction, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ email, survey_answer: survey }),
+          });
+
+          if (res.ok) {
+            document.getElementById('form-container').querySelector('form').classList.add('hidden');
+            document.getElementById('form-container').querySelector('h2').classList.add('hidden');
+            document.getElementById('form-container').querySelector('p').classList.add('hidden');
+            if (document.getElementById('survey-container')) {
+              document.getElementById('survey-container').classList.add('hidden');
+            }
+            // Hide the "no spam" text
+            const noSpam = document.getElementById('form-container').querySelectorAll('p');
+            noSpam.forEach(p => { if (p.textContent.includes('No spam')) p.classList.add('hidden'); });
+            document.getElementById('success-container').classList.remove('hidden');
+          } else {
+            throw new Error('Submission failed');
+          }
+        } catch {
+          btn.disabled = false;
+          btn.textContent = C.ctaText;
+          alert('Something went wrong. Please try again.');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

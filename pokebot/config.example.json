@@ -1,0 +1,29 @@
+{
+  "urls": [],
+  "browser": {
+    "headless": false,
+    "maxContexts": 1
+  },
+  "proxy": {
+    "enabled": false,
+    "provider": "brightdata",
+    "customerId": "",
+    "zone": "",
+    "password": "",
+    "country": "sg"
+  },
+  "timing": {
+    "minPageDelay": 3000,
+    "maxPageDelay": 8000,
+    "minActionDelay": 500,
+    "maxActionDelay": 1500
+  },
+  "detection": {
+    "cooldownMs": 300000,
+    "maxRetries": 3
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/bot.log"
+  }
+}

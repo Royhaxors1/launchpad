@@ -1,4 +1,5 @@
 import type { Browser } from 'rebrowser-playwright';
+import { input } from '@inquirer/prompts';
 import { createStealthContext } from '../browser/context.js';
 import type { ProxyConfig } from '../proxy/provider.js';
 import type { Account } from '../account/types.js';
@@ -10,9 +11,8 @@ export async function loginToLazada(options: {
   account: Account;
   masterPassword: string;
   proxyConfig?: ProxyConfig;
-  onOtp?: () => void;
 }): Promise<{ success: boolean; error?: string }> {
-  const { browser, account, masterPassword, proxyConfig, onOtp } = options;
+  const { browser, account, masterPassword, proxyConfig } = options;
 
   // --- Try session restore first ---
   const savedSessionJson = loadSession(account.id, masterPassword);
@@ -48,7 +48,7 @@ export async function loginToLazada(options: {
   // --- Fresh login flow (OTP-based) ---
   const context = await createStealthContext(browser, proxyConfig);
   try {
-    let page = await context.newPage();
+    const page = await context.newPage();
 
     await page.goto('https://member.lazada.sg/user/login', {
       waitUntil: 'networkidle',
@@ -62,13 +62,13 @@ export async function loginToLazada(options: {
     await phoneTab.click();
     await humanDelay(400, 800);
 
-    // Fill phone number — target the exact placeholder, not the country code area
+    // Fill phone number
     const phoneInput = page.locator('input[placeholder*="enter your phone number" i]').first();
     await phoneInput.waitFor({ state: 'visible', timeout: 5000 });
     await phoneInput.click({ force: true });
     await humanDelay(200, 400);
 
-    // Strip country code prefix if present — the form already shows +65
+    // Strip country code prefix — the form already shows +65
     let phoneDigits = account.loginId.replace(/\s+/g, '');
     if (phoneDigits.startsWith('+65')) phoneDigits = phoneDigits.slice(3);
     if (phoneDigits.startsWith('65') && phoneDigits.length > 8) phoneDigits = phoneDigits.slice(2);
@@ -76,13 +76,9 @@ export async function loginToLazada(options: {
     await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
     await humanDelay(400, 800);
 
-    // Prevent the WhatsApp deep link from killing the page.
-    // The button triggers whatsapp:// protocol navigation which Playwright can't handle.
-    // Override window.open and intercept link clicks to swallow non-HTTP navigations.
+    // Prevent the WhatsApp deep link from killing the page
     await page.evaluate(() => {
       window.open = (() => null) as any;
-
-      // Intercept anchor clicks that use whatsapp:// or similar protocols
       document.addEventListener('click', (e) => {
         const anchor = (e.target as Element).closest('a');
         if (anchor) {
@@ -95,64 +91,49 @@ export async function loginToLazada(options: {
       }, true);
     });
 
+    // Click "Send code via Whatsapp"
     const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
     await whatsappBtn.waitFor({ state: 'visible', timeout: 5000 });
     await whatsappBtn.click();
     await humanDelay(2000, 3000);
 
-    // Check if the page survived. If it died (about:blank or disconnected),
-    // create a new page and navigate back — the OTP was already sent.
-    let pageAlive = true;
-    try {
-      const currentUrl = page.url();
-      if (!currentUrl.includes('lazada')) {
-        pageAlive = false;
-      }
-    } catch {
-      pageAlive = false;
-    }
+    // Ask for OTP in the terminal — user checks WhatsApp and types it here
+    const otp = await input({
+      message: 'Enter 6-digit OTP from WhatsApp:',
+      validate: (v) => /^\d{6}$/.test(v.trim()) || 'Must be exactly 6 digits',
+    });
 
-    if (!pageAlive) {
-      // Page died from the deep link — create new page and go back to login.
-      // Lazada should show the OTP form since it was already sent for this phone.
-      try { await page.close(); } catch {}
-      page = await context.newPage();
-      await page.goto('https://member.lazada.sg/user/login', {
-        waitUntil: 'networkidle',
-        timeout: 15000,
-      });
-      await humanDelay(1000, 2000);
+    // Type OTP into the browser's input fields
+    // Lazada OTP form has individual input boxes — typing digits sequentially fills them
+    const otpInputs = page.locator('input[type="tel"], input[type="number"], input[maxlength="1"]');
+    const inputCount = await otpInputs.count().catch(() => 0);
 
-      // Re-select Phone Number tab and re-enter phone to get back to OTP screen
-      const phoneTab2 = page.locator('text=Phone Number').first();
-      await phoneTab2.waitFor({ state: 'visible', timeout: 10000 });
-      await phoneTab2.click();
-      await humanDelay(400, 800);
-
-      const phoneInput2 = page.locator('input[placeholder*="enter your phone number" i]').first();
-      await phoneInput2.waitFor({ state: 'visible', timeout: 5000 });
-      await phoneInput2.click({ force: true });
+    if (inputCount >= 6) {
+      // Individual digit boxes — click the first one and type all digits
+      await otpInputs.first().click({ force: true });
       await humanDelay(200, 400);
-      await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
-      await humanDelay(400, 800);
-
-      // Click WhatsApp again — Lazada should show "Resend OTP in Xs" or the OTP form directly
-      const whatsappBtn2 = page.locator('text=Send code via Whatsapp').first();
-      const hasWhatsappBtn = await whatsappBtn2.isVisible().catch(() => false);
-      if (hasWhatsappBtn) {
-        await page.evaluate(() => { window.open = (() => null) as any; });
-        await whatsappBtn2.click();
-        await humanDelay(2000, 3000);
+      for (const digit of otp.trim()) {
+        await page.keyboard.type(digit, { delay: 80 + Math.random() * 80 });
+        await humanDelay(100, 200);
       }
+    } else {
+      // Single input or other layout — just type the full code
+      await page.keyboard.type(otp.trim(), { delay: 80 + Math.random() * 80 });
     }
+    await humanDelay(500, 1000);
 
-    console.log('OTP sent via WhatsApp — enter the 6-digit code in the browser window');
-    onOtp?.();
+    // Click Confirm button
+    const confirmBtn = page.locator('button:text-matches("confirm|verify|submit", "i")').first();
+    const hasConfirm = await confirmBtn.isVisible().catch(() => false);
+    if (hasConfirm) {
+      await confirmBtn.click();
+    }
+    await humanDelay(2000, 3000);
 
-    // Wait up to 120s for user to enter OTP and complete login
+    // Wait for redirect away from login page
     const result = await Promise.race([
       waitForLoginSuccess(page),
-      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 120000)),
+      new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 30000)),
     ]);
 
     if (result === 'success') {
@@ -160,7 +141,7 @@ export async function loginToLazada(options: {
       return { success: true };
     }
 
-    return { success: false, error: 'OTP timeout — enter the code in the browser within 120s' };
+    return { success: false, error: 'Login did not complete after OTP — check browser for errors' };
   } finally {
     await context.close();
   }
@@ -174,14 +155,11 @@ async function waitForLoginSuccess(
       const url = page.url();
       const parsed = new URL(url);
 
-      // Success: on lazada.sg AND pathname has no "login" in it.
-      // Login pages: /user/login, /wow/gcp/sg/member/login-signup, etc.
-      // Logged-in pages: /, /account/, /wow/..., etc.
       if (parsed.hostname.includes('lazada.sg') && !parsed.pathname.includes('login')) {
         return 'success';
       }
     } catch {
-      // Page might be disconnected or URL invalid — keep polling
+      // Page might be disconnected — keep polling
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));

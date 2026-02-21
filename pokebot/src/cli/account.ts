@@ -223,8 +223,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
           account,
           masterPassword,
           proxyConfig,
-          onOtp: () =>
-            console.log('Enter the 6-digit OTP in the browser window (WhatsApp or SMS)'),
         });
 
         if (result.success) {

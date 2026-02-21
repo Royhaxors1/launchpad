@@ -228,7 +228,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         });
 
         if (result.success) {
-          // Update lastLoginAt in the account store (load-mutate-save)
           const accounts = store.list();
           const idx = accounts.findIndex((a) => a.id === account.id);
           if (idx !== -1) {
@@ -240,6 +239,9 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
           console.error(`Login failed: ${result.error ?? 'Unknown error'}`);
           process.exitCode = 1;
         }
+      } catch (err) {
+        console.error('Login error:', err instanceof Error ? err.message : err);
+        process.exitCode = 1;
       } finally {
         await browser.close();
       }

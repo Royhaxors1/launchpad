@@ -51,21 +51,23 @@ export async function loginToLazada(options: {
     const page = await context.newPage();
 
     await page.goto('https://member.lazada.sg/user/login', {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle',
       timeout: 30000,
     });
-    await humanDelay(800, 1500);
+    await humanDelay(1000, 2000);
 
     // Click the "Phone Number" tab — Lazada defaults to the Password tab
     const phoneTab = page.locator('text=Phone Number').first();
+    await phoneTab.waitFor({ state: 'visible', timeout: 10000 });
     await phoneTab.click();
     await humanDelay(400, 800);
 
-    // Fill phone number
+    // Fill phone number — wait for the input to appear after tab switch
     const phoneInput = page
-      .locator('input[placeholder*="phone" i], input[placeholder*="mobile" i], input[name="loginId"], input[type="text"], input[type="tel"]')
+      .locator('input[placeholder*="phone" i], input[placeholder*="mobile" i], input[type="tel"], input[type="text"]')
       .first();
 
+    await phoneInput.waitFor({ state: 'visible', timeout: 5000 });
     await phoneInput.click();
     await humanDelay(200, 400);
     await page.keyboard.type(account.loginId, { delay: 50 + Math.random() * 100 });
@@ -76,6 +78,7 @@ export async function loginToLazada(options: {
       .locator('button[type="submit"], button:text-matches("send|next|log.?in|sign.?in|continue|verify", "i")')
       .first();
 
+    await sendBtn.waitFor({ state: 'visible', timeout: 5000 });
     await sendBtn.click();
     await humanDelay(500, 1000);
 

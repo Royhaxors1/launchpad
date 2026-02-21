@@ -48,7 +48,7 @@ export async function loginToLazada(options: {
   // --- Fresh login flow (OTP-based) ---
   const context = await createStealthContext(browser, proxyConfig);
   try {
-    const page = await context.newPage();
+    let page = await context.newPage();
 
     await page.goto('https://member.lazada.sg/user/login', {
       waitUntil: 'networkidle',
@@ -64,7 +64,6 @@ export async function loginToLazada(options: {
 
     // Fill phone number — target the exact placeholder, not the country code area
     const phoneInput = page.locator('input[placeholder*="enter your phone number" i]').first();
-
     await phoneInput.waitFor({ state: 'visible', timeout: 5000 });
     await phoneInput.click({ force: true });
     await humanDelay(200, 400);
@@ -77,9 +76,24 @@ export async function loginToLazada(options: {
     await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
     await humanDelay(400, 800);
 
-    // Block only WhatsApp deep link navigation — it kills the page.
-    // Lazada API calls to send the OTP still go through.
-    await page.route(/whatsapp|wa\.me/, (route) => route.abort());
+    // Prevent the WhatsApp deep link from killing the page.
+    // The button triggers whatsapp:// protocol navigation which Playwright can't handle.
+    // Override window.open and intercept link clicks to swallow non-HTTP navigations.
+    await page.evaluate(() => {
+      window.open = (() => null) as any;
+
+      // Intercept anchor clicks that use whatsapp:// or similar protocols
+      document.addEventListener('click', (e) => {
+        const anchor = (e.target as Element).closest('a');
+        if (anchor) {
+          const href = anchor.getAttribute('href') ?? '';
+          if (href && !href.startsWith('http') && !href.startsWith('/') && !href.startsWith('#')) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      }, true);
+    });
 
     // Click "Send code via Whatsapp"
     const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
@@ -87,8 +101,51 @@ export async function loginToLazada(options: {
     await whatsappBtn.click();
     await humanDelay(2000, 3000);
 
-    // Remove route handler so subsequent navigations work normally
-    await page.unroute(/whatsapp|wa\.me/);
+    // Check if the page survived. If it died (about:blank or disconnected),
+    // create a new page and navigate back — the OTP was already sent.
+    let pageAlive = true;
+    try {
+      const currentUrl = page.url();
+      if (!currentUrl.includes('lazada')) {
+        pageAlive = false;
+      }
+    } catch {
+      pageAlive = false;
+    }
+
+    if (!pageAlive) {
+      // Page died from the deep link — create new page and go back to login.
+      // Lazada should show the OTP form since it was already sent for this phone.
+      try { await page.close(); } catch {}
+      page = await context.newPage();
+      await page.goto('https://member.lazada.sg/user/login', {
+        waitUntil: 'networkidle',
+        timeout: 15000,
+      });
+      await humanDelay(1000, 2000);
+
+      // Re-select Phone Number tab and re-enter phone to get back to OTP screen
+      const phoneTab2 = page.locator('text=Phone Number').first();
+      await phoneTab2.waitFor({ state: 'visible', timeout: 10000 });
+      await phoneTab2.click();
+      await humanDelay(400, 800);
+
+      const phoneInput2 = page.locator('input[placeholder*="enter your phone number" i]').first();
+      await phoneInput2.waitFor({ state: 'visible', timeout: 5000 });
+      await phoneInput2.click({ force: true });
+      await humanDelay(200, 400);
+      await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
+      await humanDelay(400, 800);
+
+      // Click WhatsApp again — Lazada should show "Resend OTP in Xs" or the OTP form directly
+      const whatsappBtn2 = page.locator('text=Send code via Whatsapp').first();
+      const hasWhatsappBtn = await whatsappBtn2.isVisible().catch(() => false);
+      if (hasWhatsappBtn) {
+        await page.evaluate(() => { window.open = (() => null) as any; });
+        await whatsappBtn2.click();
+        await humanDelay(2000, 3000);
+      }
+    }
 
     console.log('OTP sent via WhatsApp — enter the 6-digit code in the browser window');
     onOtp?.();
@@ -114,15 +171,19 @@ async function waitForLoginSuccess(
   page: import('rebrowser-playwright').Page,
 ): Promise<'success'> {
   while (true) {
-    const url = page.url();
+    try {
+      const url = page.url();
 
-    // Success: on a lazada.sg page that's NOT the login page
-    if (
-      url.includes('lazada.sg') &&
-      !url.includes('/user/login') &&
-      !url.includes('member.lazada.sg/user/login')
-    ) {
-      return 'success';
+      // Success: on a lazada.sg page that's NOT the login page
+      if (
+        url.includes('lazada.sg') &&
+        !url.includes('/user/login') &&
+        !url.includes('member.lazada.sg/user/login')
+      ) {
+        return 'success';
+      }
+    } catch {
+      // Page might be disconnected — keep polling in case it recovers
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));

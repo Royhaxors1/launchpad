@@ -3,6 +3,11 @@ import { input, password, confirm, select } from '@inquirer/prompts';
 import Table from 'cli-table3';
 import { AccountStore } from '../account/store.js';
 import type { Account } from '../account/types.js';
+import { launchStealthBrowser } from '../browser/stealth.js';
+import { createStealthContext } from '../browser/context.js';
+import { loginToLazada } from '../auth/login.js';
+import { loadSession, isSessionValid } from '../auth/session.js';
+import type { ProxyConfig } from '../proxy/provider.js';
 
 function formatRelativeTime(isoString: string | null): string {
   if (!isoString) return 'Never';
@@ -218,6 +223,121 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         console.log(`Account removed: ${account.loginId}`);
       } else {
         console.log('Cancelled');
+      }
+    });
+
+  accountCmd
+    .command('login <identifier>')
+    .description('Log in to a Lazada account (opens browser window)')
+    .action(async (identifier: string) => {
+      const masterPassword = await getMasterPassword();
+      const store = new AccountStore(masterPassword);
+      const account = store.findByIdentifier(identifier);
+
+      if (!account) {
+        console.error(`No account found matching: ${identifier}`);
+        process.exit(1);
+      }
+
+      // Build proxy config from account's stored proxy settings
+      let proxyConfig: ProxyConfig | undefined;
+      if (account.proxy) {
+        proxyConfig = {
+          server: `http://${account.proxy.host}:${account.proxy.port}`,
+          username: account.proxy.username,
+          password: account.proxy.password,
+        };
+      }
+
+      console.log(`Logging in to ${account.loginId}...`);
+      // headless: false so the user can see the browser and resolve CAPTCHA manually
+      const browser = await launchStealthBrowser(false);
+      try {
+        const result = await loginToLazada({
+          browser,
+          account,
+          masterPassword,
+          proxyConfig,
+          onCaptcha: () =>
+            console.log('CAPTCHA detected — please resolve manually in the browser window'),
+        });
+
+        if (result.success) {
+          // Update lastLoginAt in the account store (load-mutate-save)
+          const accounts = store.list();
+          const idx = accounts.findIndex((a) => a.id === account.id);
+          if (idx !== -1) {
+            accounts[idx].lastLoginAt = new Date().toISOString();
+            store.save(accounts);
+          }
+          console.log(`Login successful: ${account.loginId}`);
+        } else {
+          console.error(`Login failed: ${result.error ?? 'Unknown error'}`);
+          process.exitCode = 1;
+        }
+      } finally {
+        await browser.close();
+      }
+    });
+
+  accountCmd
+    .command('test-session <identifier>')
+    .description('Validate the saved session for an account without re-logging in')
+    .action(async (identifier: string) => {
+      const masterPassword = await getMasterPassword();
+      const store = new AccountStore(masterPassword);
+      const account = store.findByIdentifier(identifier);
+
+      if (!account) {
+        console.error(`No account found matching: ${identifier}`);
+        process.exit(1);
+      }
+
+      const sessionJson = loadSession(account.id, masterPassword);
+      if (!sessionJson) {
+        console.log('No saved session. Run `pokebot account login` first.');
+        return;
+      }
+
+      console.log(`Validating session for ${account.loginId}...`);
+      const browser = await launchStealthBrowser(true);
+      try {
+        const state = JSON.parse(sessionJson) as {
+          cookies: { name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: 'Strict' | 'Lax' | 'None' }[];
+          origins: object[];
+        };
+
+        let proxyConfig: ProxyConfig | undefined;
+        if (account.proxy) {
+          proxyConfig = {
+            server: `http://${account.proxy.host}:${account.proxy.port}`,
+            username: account.proxy.username,
+            password: account.proxy.password,
+          };
+        }
+
+        const context = await createStealthContext(browser, proxyConfig);
+        try {
+          if (state.cookies && state.cookies.length > 0) {
+            await context.addCookies(state.cookies);
+          }
+          const page = await context.newPage();
+          try {
+            const valid = await isSessionValid(page);
+            if (valid) {
+              console.log('Session valid');
+            } else {
+              console.log('Session expired — re-login needed');
+              process.exitCode = 1;
+            }
+          } finally {
+            await page.close();
+          }
+        } finally {
+          await context.close();
+        }
+      } finally {
+        await browser.close();
       }
     });
 }

@@ -57,7 +57,7 @@ export class AccountStore {
 
   update(
     id: string,
-    updates: Partial<Pick<Account, 'loginId' | 'loginType' | 'password' | 'proxy' | 'paymentLabel'>>,
+    updates: Partial<Pick<Account, 'loginId' | 'loginType' | 'proxy' | 'paymentLabel'>>,
   ): Account {
     const accounts = this.load();
     const idx = accounts.findIndex((a) => a.id === id);

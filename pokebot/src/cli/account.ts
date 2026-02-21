@@ -40,11 +40,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         validate: (v) => v.trim().length > 0 || 'Required',
       });
 
-      const accountPassword = await password({
-        message: 'Password:',
-        mask: '*',
-      });
-
       const proxyHost = await input({
         message: 'Proxy host (leave empty to skip):',
       });
@@ -72,7 +67,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
       const account = store.add({
         loginId: loginId.trim(),
         loginType: 'phone',
-        password: accountPassword,
         proxy,
         paymentLabel: paymentLabel.trim(),
       });
@@ -131,11 +125,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         default: account.loginId,
       });
 
-      const newPassword = await password({
-        message: 'Password (press Enter to keep existing):',
-        mask: '*',
-      });
-
       const currentProxyHost = account.proxy?.host ?? '';
       const newProxyHost = await input({
         message: 'Proxy host (leave empty to remove):',
@@ -167,18 +156,12 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         default: account.paymentLabel,
       });
 
-      const updates: Parameters<typeof store.update>[1] = {
+      store.update(account.id, {
         loginId: newLoginId.trim(),
         loginType: 'phone',
         proxy: newProxy,
         paymentLabel: newPaymentLabel.trim(),
-      };
-
-      if (newPassword) {
-        updates.password = newPassword;
-      }
-
-      store.update(account.id, updates);
+      });
       console.log(`\nAccount updated: ${newLoginId.trim()}`);
     });
 
@@ -240,8 +223,8 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
           account,
           masterPassword,
           proxyConfig,
-          onCaptcha: () =>
-            console.log('CAPTCHA detected — please resolve manually in the browser window'),
+          onOtp: () =>
+            console.log('Enter the 6-digit OTP in the browser window (WhatsApp or SMS)'),
         });
 
         if (result.success) {

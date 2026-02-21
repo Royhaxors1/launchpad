@@ -2,7 +2,6 @@ export interface Account {
   id: string;
   loginId: string;
   loginType: 'phone';
-  password: string;
   proxy: {
     host: string;
     port: number;

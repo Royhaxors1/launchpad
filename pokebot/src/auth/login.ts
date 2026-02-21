@@ -81,7 +81,16 @@ export async function loginToLazada(options: {
     const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
     await whatsappBtn.waitFor({ state: 'visible', timeout: 5000 });
     await whatsappBtn.click();
-    await humanDelay(500, 1000);
+    await humanDelay(1500, 2500);
+
+    // After clicking WhatsApp, page may navigate to about:blank — navigate back
+    if (page.url() === 'about:blank' || !page.url().includes('lazada')) {
+      await page.goto('https://member.lazada.sg/user/login', {
+        waitUntil: 'networkidle',
+        timeout: 15000,
+      });
+      await humanDelay(1000, 2000);
+    }
 
     console.log('OTP sent via WhatsApp — enter the 6-digit code in the browser window');
     onOtp?.();
@@ -114,8 +123,12 @@ async function waitForLoginSuccess(
   while (true) {
     const url = page.url();
 
-    // Success: redirected away from login page
-    if (!url.includes('/user/login') && !url.includes('member.lazada.sg/user/login')) {
+    // Only count as success if on a lazada.sg page that's NOT the login page
+    if (
+      url.includes('lazada.sg') &&
+      !url.includes('/user/login') &&
+      !url.includes('member.lazada.sg/user/login')
+    ) {
       return 'success';
     }
 

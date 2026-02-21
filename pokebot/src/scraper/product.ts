@@ -4,7 +4,7 @@ export interface ProductData {
   url: string;
   title: string | null;
   price: string | null;
-  stockStatus: 'in_stock' | 'out_of_stock' | 'unknown';
+  stockStatus: 'in_stock' | 'out_of_stock' | 'pre_order' | 'coming_soon' | 'unknown';
   scrapedAt: string;
 }
 
@@ -23,10 +23,16 @@ export async function extractProductData(page: Page): Promise<ProductData> {
   let stockStatus: ProductData['stockStatus'] = 'unknown';
   const bodyText = await page.textContent('body').catch(() => '') ?? '';
   const hasOutOfStock = /out of stock|sold out/i.test(bodyText);
+  const hasPreOrder = /pre.?order/i.test(bodyText);
+  const hasComingSoon = /coming soon/i.test(bodyText);
   const disabledCart = await page.$('button[disabled][class*="cart"], button[disabled][class*="buy"]').catch(() => null);
 
   if (hasOutOfStock || disabledCart) {
     stockStatus = 'out_of_stock';
+  } else if (hasPreOrder) {
+    stockStatus = 'pre_order';
+  } else if (hasComingSoon) {
+    stockStatus = 'coming_soon';
   } else if (title) {
     stockStatus = 'in_stock';
   }

@@ -62,28 +62,28 @@ export async function loginToLazada(options: {
     await phoneTab.click();
     await humanDelay(400, 800);
 
-    // Fill phone number — wait for the input to appear after tab switch
-    const phoneInput = page
-      .locator('input[placeholder*="phone" i], input[placeholder*="mobile" i], input[type="tel"], input[type="text"]')
-      .first();
+    // Fill phone number — target the exact placeholder, not the country code area
+    const phoneInput = page.locator('input[placeholder*="enter your phone number" i]').first();
 
     await phoneInput.waitFor({ state: 'visible', timeout: 5000 });
-    await phoneInput.click();
+    await phoneInput.click({ force: true });
     await humanDelay(200, 400);
-    await page.keyboard.type(account.loginId, { delay: 50 + Math.random() * 100 });
+
+    // Strip country code prefix if present — the form already shows +65
+    let phoneDigits = account.loginId.replace(/\s+/g, '');
+    if (phoneDigits.startsWith('+65')) phoneDigits = phoneDigits.slice(3);
+    if (phoneDigits.startsWith('65') && phoneDigits.length > 8) phoneDigits = phoneDigits.slice(2);
+
+    await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
     await humanDelay(400, 800);
 
-    // Click the send OTP / next button
-    const sendBtn = page
-      .locator('button[type="submit"], button:text-matches("send|next|log.?in|sign.?in|continue|verify", "i")')
-      .first();
-
-    await sendBtn.waitFor({ state: 'visible', timeout: 5000 });
-    await sendBtn.click();
+    // Click "Send code via Whatsapp"
+    const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
+    await whatsappBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await whatsappBtn.click();
     await humanDelay(500, 1000);
 
-    // Notify user that OTP is needed
-    console.log('OTP sent — enter the 6-digit code in the browser window');
+    console.log('OTP sent via WhatsApp — enter the 6-digit code in the browser window');
     onOtp?.();
 
     // Wait up to 120s for user to enter OTP and complete login

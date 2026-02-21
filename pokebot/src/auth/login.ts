@@ -95,7 +95,6 @@ export async function loginToLazada(options: {
       }, true);
     });
 
-    // Click "Send code via Whatsapp"
     const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
     await whatsappBtn.waitFor({ state: 'visible', timeout: 5000 });
     await whatsappBtn.click();
@@ -173,17 +172,16 @@ async function waitForLoginSuccess(
   while (true) {
     try {
       const url = page.url();
+      const parsed = new URL(url);
 
-      // Success: on a lazada.sg page that's NOT the login page
-      if (
-        url.includes('lazada.sg') &&
-        !url.includes('/user/login') &&
-        !url.includes('member.lazada.sg/user/login')
-      ) {
+      // Success: on lazada.sg AND pathname has no "login" in it.
+      // Login pages: /user/login, /wow/gcp/sg/member/login-signup, etc.
+      // Logged-in pages: /, /account/, /wow/..., etc.
+      if (parsed.hostname.includes('lazada.sg') && !parsed.pathname.includes('login')) {
         return 'success';
       }
     } catch {
-      // Page might be disconnected — keep polling in case it recovers
+      // Page might be disconnected or URL invalid — keep polling
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));

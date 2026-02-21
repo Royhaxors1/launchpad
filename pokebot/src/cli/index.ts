@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { registerAccountCommands } from './account.js';
+import { registerTelegramCommands } from './telegram.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -40,5 +41,6 @@ program
   .description('Automated Pokemon TCG scalping bot for Lazada SG');
 
 registerAccountCommands(program, getMasterPassword);
+registerTelegramCommands(program);
 
 program.parse();

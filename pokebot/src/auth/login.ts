@@ -77,27 +77,18 @@ export async function loginToLazada(options: {
     await page.keyboard.type(phoneDigits, { delay: 50 + Math.random() * 100 });
     await humanDelay(400, 800);
 
-    // Block navigation away from Lazada — the WhatsApp button triggers a deep link
-    // that navigates the page to about:blank. The OTP is sent via API regardless.
-    await page.route('**', (route) => {
-      const url = route.request().url();
-      if (url.includes('lazada') || url.startsWith('data:')) {
-        route.continue();
-      } else if (route.request().resourceType() === 'document') {
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
+    // Block only WhatsApp deep link navigation — it kills the page.
+    // Lazada API calls to send the OTP still go through.
+    await page.route(/whatsapp|wa\.me/, (route) => route.abort());
 
     // Click "Send code via Whatsapp"
     const whatsappBtn = page.locator('text=Send code via Whatsapp').first();
     await whatsappBtn.waitFor({ state: 'visible', timeout: 5000 });
     await whatsappBtn.click();
-    await humanDelay(1500, 2500);
+    await humanDelay(2000, 3000);
 
-    // Remove route handler so subsequent navigations (after OTP) work normally
-    await page.unroute('**');
+    // Remove route handler so subsequent navigations work normally
+    await page.unroute(/whatsapp|wa\.me/);
 
     console.log('OTP sent via WhatsApp — enter the 6-digit code in the browser window');
     onOtp?.();

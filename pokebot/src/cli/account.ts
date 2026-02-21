@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { input, password, confirm, select } from '@inquirer/prompts';
+import { input, password, confirm } from '@inquirer/prompts';
 import Table from 'cli-table3';
 import { AccountStore } from '../account/store.js';
 import type { Account } from '../account/types.js';
@@ -35,16 +35,8 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
       const masterPassword = await getMasterPassword();
       const store = new AccountStore(masterPassword);
 
-      const loginType = await select({
-        message: 'Login method:',
-        choices: [
-          { name: 'Email', value: 'email' as const },
-          { name: 'Phone', value: 'phone' as const },
-        ],
-      });
-
       const loginId = await input({
-        message: loginType === 'email' ? 'Email address:' : 'Phone number:',
+        message: 'Phone number:',
         validate: (v) => v.trim().length > 0 || 'Required',
       });
 
@@ -79,7 +71,7 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
 
       const account = store.add({
         loginId: loginId.trim(),
-        loginType,
+        loginType: 'phone',
         password: accountPassword,
         proxy,
         paymentLabel: paymentLabel.trim(),
@@ -104,7 +96,7 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
       }
 
       const table = new Table({
-        head: ['#', 'Login ID', 'Type', 'Proxy', 'Payment', 'Last Login'],
+        head: ['#', 'Phone', 'Proxy', 'Payment', 'Last Login'],
         style: { head: ['cyan'] },
       });
 
@@ -112,7 +104,6 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         table.push([
           String(i + 1),
           account.loginId,
-          account.loginType,
           formatProxy(account),
           account.paymentLabel || '(none)',
           formatRelativeTime(account.lastLoginAt),
@@ -135,17 +126,8 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
         process.exit(1);
       }
 
-      const newLoginType = await select({
-        message: 'Login method:',
-        choices: [
-          { name: 'Email', value: 'email' as const },
-          { name: 'Phone', value: 'phone' as const },
-        ],
-        default: account.loginType,
-      });
-
       const newLoginId = await input({
-        message: newLoginType === 'email' ? 'Email address:' : 'Phone number:',
+        message: 'Phone number:',
         default: account.loginId,
       });
 
@@ -187,7 +169,7 @@ export function registerAccountCommands(program: Command, getMasterPassword: () 
 
       const updates: Parameters<typeof store.update>[1] = {
         loginId: newLoginId.trim(),
-        loginType: newLoginType,
+        loginType: 'phone',
         proxy: newProxy,
         paymentLabel: newPaymentLabel.trim(),
       };

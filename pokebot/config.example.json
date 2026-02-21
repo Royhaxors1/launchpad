@@ -25,5 +25,18 @@
   "logging": {
     "level": "info",
     "file": "logs/bot.log"
+  },
+  "monitoring": {
+    "urls": [],
+    "basePollIntervalMs": 12500,
+    "jitterMs": 2500,
+    "contextRotationCycles": 200,
+    "historyFile": "logs/stock-history.ndjson"
+  },
+  "telegram": {
+    "botToken": "",
+    "chatId": "",
+    "alertCooldownMs": 60000,
+    "dailyDigestHour": 22
   }
 }

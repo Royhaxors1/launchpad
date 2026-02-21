@@ -30,6 +30,19 @@ export interface BotConfig {
     level: 'debug' | 'info' | 'warn' | 'error';
     file: string;
   };
+  monitoring?: {
+    urls: string[];
+    basePollIntervalMs: number;
+    jitterMs: number;
+    contextRotationCycles: number;
+    historyFile: string;
+  };
+  telegram?: {
+    botToken: string;
+    chatId: string;
+    alertCooldownMs: number;
+    dailyDigestHour: number;
+  };
 }
 
 const DEFAULT_CONFIG: BotConfig = {
@@ -59,6 +72,19 @@ const DEFAULT_CONFIG: BotConfig = {
   logging: {
     level: 'info',
     file: 'logs/bot.log',
+  },
+  monitoring: {
+    urls: [],
+    basePollIntervalMs: 12500,
+    jitterMs: 2500,
+    contextRotationCycles: 200,
+    historyFile: 'logs/stock-history.ndjson',
+  },
+  telegram: {
+    botToken: '',
+    chatId: '',
+    alertCooldownMs: 60000,
+    dailyDigestHour: 22,
   },
 };
 
@@ -100,9 +126,13 @@ function validateConfig(config: BotConfig): void {
   }
 }
 
-export function loadConfig(path?: string): BotConfig {
+function getConfigPath(path?: string): string {
   const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const configPath = path ?? resolve(projectRoot, 'config.json');
+  return path ?? resolve(projectRoot, 'config.json');
+}
+
+export function loadConfig(path?: string): BotConfig {
+  const configPath = getConfigPath(path);
 
   if (!existsSync(configPath)) {
     console.log(`No config found at ${configPath} — generating defaults`);
@@ -112,14 +142,33 @@ export function loadConfig(path?: string): BotConfig {
   }
 
   const raw = readFileSync(configPath, 'utf-8');
-  let config: BotConfig;
+  let parsed: Record<string, unknown>;
   try {
-    config = JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw new Error(`Config error: invalid JSON in ${configPath}`);
   }
 
+  // Deep-merge with defaults so missing optional sections get filled in
+  const config: BotConfig = {
+    ...DEFAULT_CONFIG,
+    ...parsed,
+    browser: { ...DEFAULT_CONFIG.browser, ...(parsed.browser as object ?? {}) },
+    proxy: { ...DEFAULT_CONFIG.proxy, ...(parsed.proxy as object ?? {}) },
+    timing: { ...DEFAULT_CONFIG.timing, ...(parsed.timing as object ?? {}) },
+    detection: { ...DEFAULT_CONFIG.detection, ...(parsed.detection as object ?? {}) },
+    logging: { ...DEFAULT_CONFIG.logging, ...(parsed.logging as object ?? {}) },
+    monitoring: { ...DEFAULT_CONFIG.monitoring!, ...(parsed.monitoring as object ?? {}) },
+    telegram: { ...DEFAULT_CONFIG.telegram!, ...(parsed.telegram as object ?? {}) },
+  };
+
   validateConfig(config);
   console.log(`Config loaded from ${configPath}`);
   return config;
+}
+
+export function saveConfig(config: BotConfig, path?: string): void {
+  const configPath = getConfigPath(path);
+  writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+  console.log(`Config saved to ${configPath}`);
 }

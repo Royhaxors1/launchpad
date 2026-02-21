@@ -56,6 +56,11 @@ export async function loginToLazada(options: {
     });
     await humanDelay(800, 1500);
 
+    // Click the "Phone Number" tab — Lazada defaults to the Password tab
+    const phoneTab = page.locator('text=Phone Number').first();
+    await phoneTab.click();
+    await humanDelay(400, 800);
+
     // Fill phone number
     const phoneInput = page
       .locator('input[placeholder*="phone" i], input[placeholder*="mobile" i], input[name="loginId"], input[type="text"], input[type="tel"]')

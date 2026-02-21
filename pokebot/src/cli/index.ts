@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { registerAccountCommands } from './account.js';
 import { registerTelegramCommands } from './telegram.js';
+import { registerWatchCommands } from './watch.js';
+import { registerMonitorCommand } from './monitor.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -42,5 +44,7 @@ program
 
 registerAccountCommands(program, getMasterPassword);
 registerTelegramCommands(program);
+registerWatchCommands(program);
+registerMonitorCommand(program);
 
 program.parse();

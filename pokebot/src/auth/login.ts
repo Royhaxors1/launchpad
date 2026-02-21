@@ -104,12 +104,7 @@ export async function loginToLazada(options: {
       return { success: true };
     }
 
-    if (result === 'timeout') {
-      return { success: false, error: 'OTP timeout — enter the code in the browser within 120s' };
-    }
-
-    const errorText = await extractLoginError(page);
-    return { success: false, error: errorText ?? 'Login failed — unknown error' };
+    return { success: false, error: 'OTP timeout — enter the code in the browser within 120s' };
   } finally {
     await context.close();
   }
@@ -117,11 +112,11 @@ export async function loginToLazada(options: {
 
 async function waitForLoginSuccess(
   page: import('rebrowser-playwright').Page,
-): Promise<'success' | 'error'> {
+): Promise<'success'> {
   while (true) {
     const url = page.url();
 
-    // Only count as success if on a lazada.sg page that's NOT the login page
+    // Success: on a lazada.sg page that's NOT the login page
     if (
       url.includes('lazada.sg') &&
       !url.includes('/user/login') &&
@@ -130,25 +125,6 @@ async function waitForLoginSuccess(
       return 'success';
     }
 
-    // Error message in form
-    const errorVisible =
-      (await page.locator('.error-message').isVisible().catch(() => false)) ||
-      (await page.locator('[class*="error"]:not(input)').isVisible().catch(() => false));
-
-    if (errorVisible) {
-      return 'error';
-    }
-
     await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-}
-
-async function extractLoginError(page: import('rebrowser-playwright').Page): Promise<string | null> {
-  try {
-    const errorEl = page.locator('.error-message, [class*="error"]:not(input)').first();
-    const text = await errorEl.textContent({ timeout: 2000 });
-    return text?.trim() ?? null;
-  } catch {
-    return null;
   }
 }

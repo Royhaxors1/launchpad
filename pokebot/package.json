@@ -7,6 +7,9 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.2.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.3",
     "fingerprint-generator": "^2.1.0",
     "fingerprint-injector": "^2.1.0",
     "pino": "^9.0.0",

@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "cli": "tsx src/cli/index.ts"
+  },
+  "bin": {
+    "pokebot": "./src/cli/index.ts"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.2.1",
